@@ -1,0 +1,24 @@
+-- ユーザーテーブル
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- タスクテーブル
+CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  due_date DATETIME,
+  priority TEXT DEFAULT 'medium',
+  category TEXT DEFAULT 'other',
+  user_id INTEGER NOT NULL,
+  status TEXT DEFAULT 'pending',
+  completed BOOLEAN DEFAULT 0,
+  completedAt DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+); 
