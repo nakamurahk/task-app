@@ -56,6 +56,7 @@ module.exports = {
           '"Segoe UI Symbol"',
           '"Noto Color Emoji"',
         ],
+        rounded: ['"M PLUS Rounded 1c"', 'sans-serif'],
       },
       keyframes: {
         "accordion-down": {

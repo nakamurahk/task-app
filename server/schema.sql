@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   user_id INTEGER NOT NULL,
   status TEXT DEFAULT 'pending',
   completed BOOLEAN DEFAULT 0,
-  completedAt DATETIME,
+  completed_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)

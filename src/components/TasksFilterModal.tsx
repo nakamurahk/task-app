@@ -1,5 +1,6 @@
 import React from 'react';
-import { TaskCategory, TaskPriority } from '../types/task';
+import { Category, TaskPriority } from '../types/task';
+import { SlidersHorizontal } from 'lucide-react';
 
 interface TasksFilterModalProps {
   isOpen: boolean;
@@ -10,7 +11,7 @@ interface TasksFilterModalProps {
 
 export interface TaskFilters {
   status: 'all' | 'completed' | 'incomplete';
-  category: 'all' | TaskCategory;
+  category: 'all' | string;
   priority: 'all' | TaskPriority;
 }
 
@@ -30,27 +31,26 @@ export const TasksFilterModal: React.FC<TasksFilterModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="flex justify-between items-center mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 pt-20">
+      <div className="bg-white rounded-lg p-6 w-[85%] max-w-[320px]">
+        <div className="flex items-center gap-2 mb-6">
+          <SlidersHorizontal className="w-5 h-5 text-gray-600" />
           <h2 className="text-xl font-bold">タスクフィルター</h2>
           <button
             onClick={onClose}
-            className="close-button"
+            className="ml-auto text-gray-500 hover:text-gray-700"
           >
             ✕
           </button>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              完了状態
-            </label>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-gray-700">完了状態</h3>
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value as TaskFilters['status'] })}
-              className="task-input"
+              className="w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">全て</option>
               <option value="completed">完了</option>
@@ -58,14 +58,12 @@ export const TasksFilterModal: React.FC<TasksFilterModalProps> = ({
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              カテゴリ
-            </label>
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-gray-700">カテゴリ</h3>
             <select
               value={filters.category}
               onChange={(e) => setFilters({ ...filters, category: e.target.value as TaskFilters['category'] })}
-              className="task-input"
+              className="w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">全て</option>
               <option value="仕事">仕事</option>
@@ -74,14 +72,12 @@ export const TasksFilterModal: React.FC<TasksFilterModalProps> = ({
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              重要度
-            </label>
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-gray-700">重要度</h3>
             <select
               value={filters.priority}
               onChange={(e) => setFilters({ ...filters, priority: e.target.value as TaskFilters['priority'] })}
-              className="task-input"
+              className="w-full rounded-md border border-gray-300 shadow-sm px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">全て</option>
               <option value="high">高</option>
@@ -91,16 +87,16 @@ export const TasksFilterModal: React.FC<TasksFilterModalProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2 mt-6">
+        <div className="flex gap-3 mt-8">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
           >
             キャンセル
           </button>
           <button
             onClick={handleApply}
-            className="submit-button"
+            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
           >
             適用
           </button>

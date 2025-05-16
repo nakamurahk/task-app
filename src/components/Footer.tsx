@@ -1,37 +1,36 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-type TabType = 'home' | 'tasks' | 'analysis' | 'settings';
+type TabType = 'tasks' | 'today' | 'analyze' | 'settings';
 
 interface FooterProps {
   activeTab?: TabType;
 }
 
-const Footer: React.FC<FooterProps> = ({ activeTab = 'home' }) => {
+const Footer: React.FC<FooterProps> = ({ activeTab }) => {
   const location = useLocation();
-  const currentPath = location.pathname;
-
-  const navItems = [
-    { id: 'home', icon: '🏠', label: 'Home', path: '/' },
-    { id: 'tasks', icon: '📋', label: 'Tasks', path: '/tasks' },
-    { id: 'analysis', icon: '📊', label: 'Analysis', path: '/analyze' },
-    { id: 'settings', icon: '⚙️', label: 'Settings', path: '/settings' }
-  ] as const;
+  const currentTab = activeTab || location.pathname.split('/')[1] as TabType || 'tasks';
 
   return (
     <footer className="footer">
-      <nav className="bottom-nav">
-        {navItems.map(({ id, icon, label, path }) => (
-          <Link
-            key={id}
-            to={path}
-            className={`nav-item ${currentPath === path ? 'nav-item-active' : ''}`}
-          >
-            <span className="nav-icon">{icon}</span>
-            <span className="nav-label">{label}</span>
-          </Link>
-        ))}
-      </nav>
+      <div className="bottom-nav">
+        <Link to="/tasks" className={`nav-item ${currentTab === 'tasks' ? 'nav-item-active' : ''}`}>
+          <span className="nav-icon">📋</span>
+          <span className="nav-label">タスク一覧</span>
+        </Link>
+        <Link to="/today" className={`nav-item ${currentTab === 'today' ? 'nav-item-active' : ''}`}>
+          <span className="nav-icon">☀️</span>
+          <span className="nav-label">今日のタスク</span>
+        </Link>
+        <Link to="/analyze" className={`nav-item ${currentTab === 'analyze' ? 'nav-item-active' : ''}`}>
+          <span className="nav-icon">📊</span>
+          <span className="nav-label">分析</span>
+        </Link>
+        <Link to="/settings" className={`nav-item ${currentTab === 'settings' ? 'nav-item-active' : ''}`}>
+          <span className="nav-icon">⚙️</span>
+          <span className="nav-label">設定</span>
+        </Link>
+      </div>
     </footer>
   );
 };

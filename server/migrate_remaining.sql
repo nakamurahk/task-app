@@ -74,4 +74,12 @@ CREATE INDEX idx_reminders_user ON reminders(user_id);
 CREATE INDEX idx_reminders_task ON reminders(task_id);
 CREATE INDEX idx_reminders_scheduled_time ON reminders(scheduled_time);
 
-CREATE INDEX idx_categories_user ON categories(user_id); 
+CREATE INDEX idx_categories_user ON categories(user_id);
+
+-- completedAtカラムの名前変更と形式変換
+ALTER TABLE tasks RENAME COLUMN completedAt TO completed_at;
+
+-- 既存データの形式変換
+UPDATE tasks 
+SET completed_at = strftime('%Y-%m-%d %H:%M:%S', completed_at)
+WHERE completed_at IS NOT NULL; 

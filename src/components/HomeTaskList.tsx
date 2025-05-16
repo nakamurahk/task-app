@@ -1,58 +1,53 @@
-import React, { useMemo } from 'react';
-import { useTasks } from '../contexts/TaskContext';
-import { useAppContext } from '../contexts/AppContext';
+import React from 'react';
+import { useAppStore, AppState } from '../lib/useAppStore';
+import { Task } from '../types/task';
 import HomeTaskItem from './HomeTaskItem';
-import CompletedTasks from './CompletedTasks';
 
 interface HomeTaskListProps {
   onAddTaskClick: () => void;
 }
 
 const HomeTaskList: React.FC<HomeTaskListProps> = ({ onAddTaskClick }) => {
-  const { tasks, toggleTask } = useTasks();
-  const { selectedTasks } = useAppContext();
-
-  // タスクのメモ化
-  const displayTasks = useMemo(() => {
-    // selectedTasksが存在する場合のみ表示
-    return selectedTasks.map((task, index) => ({
-      ...task,
-      originalIndex: index
-    }));
-  }, [selectedTasks]);
+  const tasks = useAppStore((s: AppState) => s.tasks);
+  const toggleTask = useAppStore((s: AppState) => s.toggleTask);
+  // is_today_taskがtrueのタスクのみをフィルタリング
+  const todayTasks = tasks.filter((task: Task) => task.is_today_task);
 
   return (
-    <div className="task-list-container">
-      <div className="task-list-header">
-        <h2 className="section-title">今日のタスク</h2>
-        <div className="text-sm text-gray-500 mt-1">
-          <p>・今日やるタスクを表示する欄です（予定）</p>
-          <p>・AIが推薦するか、手動でタスク一覧からスワイプで持ち込んだタスクを表示します（予定）</p>
-        </div>
+    <div className="mt-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">今日のタスク</h2>
+        <button
+          onClick={onAddTaskClick}
+          className="text-sm text-blue-600 hover:text-blue-800"
+        >
+          ＋ タスクを追加
+        </button>
       </div>
 
-      {displayTasks.length > 0 && (
-        <div className="task-list">
-          {displayTasks.map((task, index) => (
-            <div
-              key={`task-${task.id}`}
-              style={{
-                borderLeftColor: task.category?.color || '#FFD93D',
-                cursor: 'default',
-                pointerEvents: 'auto'
-              }}
-              data-category={task.category?.name || "その他"}
-            >
-              <HomeTaskItem
-                task={task}
-                onToggle={() => toggleTask(task.id)}
-              />
-            </div>
+      {todayTasks.length > 0 ? (
+        <div className="space-y-2">
+          {todayTasks.map((task: Task) => (
+            <HomeTaskItem 
+              key={task.id} 
+              task={task} 
+              onToggle={() => toggleTask(task.id)}
+            />
           ))}
         </div>
+      ) : (
+        <div className="text-center py-8 bg-gray-50 rounded-lg">
+          <p className="text-gray-500">
+            今日のタスクはまだ選ばれていません
+          </p>
+          <button
+            onClick={onAddTaskClick}
+            className="mt-4 text-sm text-blue-600 hover:text-blue-800"
+          >
+            タスクを追加する
+          </button>
+        </div>
       )}
-
-      <CompletedTasks />
     </div>
   );
 };

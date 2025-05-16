@@ -17,8 +17,8 @@ export default defineConfig({
   server: {
     hmr: {
       overlay: false,
-      clientPort: 5173,
-      protocol: 'ws'
+      clientPort: 443,       // ← HTTPSに対応したポートに変更
+      protocol: 'wss'        // ← 安全なWebSocket
     },
     watch: {
       usePolling: true,

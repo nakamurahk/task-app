@@ -28,21 +28,47 @@ initializeApp({
   })
 });
 
-// CORSの設定
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://fitty2501.xyz'
+];
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // originがundefinedな場合（Postmanなど）も許可
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORSポリシーにより拒否されました'));
+    }
+  },
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 
+// OPTIONSリクエスト用（プリフライト対応）
 app.options('*', cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORSポリシーにより拒否されました'));
+    }
+  },
   credentials: true
 }));
 
 // JSONパーサーの設定
 app.use(express.json());
+
+// 全APIレスポンスにキャッシュ無効化ヘッダーを付与
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.path}`);
@@ -93,8 +119,11 @@ const authenticateToken = async (req: express.Request, res: express.Response, ne
             ai_suggestion_enabled,
             onboarding_completed,
             show_completed_tasks,
-            daily_reminder_enabled
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            daily_reminder_enabled,
+            show_hurdle,
+            show_importance,
+            show_deadline_alert
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           uid,
           5,              // daily_task_limit
@@ -110,7 +139,10 @@ const authenticateToken = async (req: express.Request, res: express.Response, ne
           1,              // ai_suggestion_enabled
           0,              // onboarding_completed
           1,              // show_completed_tasks
-          1               // daily_reminder_enabled
+          1,              // daily_reminder_enabled
+          1,              // show_hurdle
+          0,              // show_importance
+          0               // show_deadline_alert
         );
         console.log(`⚙️ user_settings 初期化完了: ${uid}`);
       }
@@ -223,7 +255,8 @@ app.post('/tasks', authenticateToken, (req, res) => {
     task_depth: 0,
     importance: req.body.importance || 'medium',
     estimated_duration_minutes: req.body.estimated_duration_minutes || 30,
-    hurdle_level: req.body.hurdle_level || 1
+    hurdle_level: req.body.hurdle_level || 1,
+    memo: req.body.memo || null
   };
   
   console.log('🧾 task:', task);
@@ -233,8 +266,8 @@ app.post('/tasks', authenticateToken, (req, res) => {
       user_id, name, description, due_date, importance,
       estimated_duration_minutes, progress, category_id,
       status, is_deleted, is_today_task, suggested_by_ai,
-      priority_score, child_order, task_depth, hurdle_level
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      priority_score, child_order, task_depth, hurdle_level, memo
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -253,7 +286,8 @@ app.post('/tasks', authenticateToken, (req, res) => {
     task.priority_score,
     task.child_order,
     task.task_depth,
-    task.hurdle_level
+    task.hurdle_level,
+    task.memo
   );
 
   res.status(201).json({ ...task, id: result.lastInsertRowid });
@@ -267,6 +301,7 @@ app.patch('/tasks/:id', authenticateToken, (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: '認証が必要です' });
   }
+
   const taskId = req.params.id;
   const userId = req.user.uid;
   const updates = req.body;
@@ -281,27 +316,41 @@ app.patch('/tasks/:id', authenticateToken, (req, res) => {
       progress = COALESCE(?, progress),
       category_id = COALESCE(?, category_id),
       status = COALESCE(?, status),
+      is_today_task = COALESCE(?, is_today_task),
+      completed_at = COALESCE(?, completed_at),
+      memo = COALESCE(?, memo),
+      hurdle_level = COALESCE(?, hurdle_level),
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND user_id = ? AND is_deleted = 0
   `);
 
-  const result = stmt.run(
-    updates.name,
-    updates.description,
-    updates.due_date,
-    updates.importance,
-    updates.estimated_duration_minutes,
-    updates.progress,
-    updates.category_id,
-    updates.status,
-    taskId,
-    userId
-  );
+  try {
+    const result = stmt.run(
+      updates.name,
+      updates.description,
+      updates.due_date,
+      updates.importance,
+      updates.estimated_duration_minutes,
+      updates.progress,
+      updates.category_id,
+      updates.status,
+      updates.is_today_task,
+      updates.completed_at,
+      updates.memo,
+      updates.hurdle_level,
+      taskId,
+      userId
+    );
 
-  if (result.changes === 0) {
-    return res.status(404).json({ error: 'タスクが見つかりません' });
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'タスクが見つかりません' });
+    }
+
+    res.json({ ...updates, id: taskId });
+  } catch (error) {
+    console.error('タスク更新中にエラー:', error);
+    res.status(500).json({ error: '更新中にサーバーエラーが発生しました' });
   }
-  res.json({ ...updates, id: taskId });
 });
 
 app.delete('/tasks/:id', authenticateToken, (req, res) => {
@@ -377,16 +426,81 @@ app.get('/user-settings', authenticateToken, (req, res) => {
     return res.status(401).json({ error: '認証が必要です' });
   }
   const userId = req.user.uid;
+  console.log('🔍 user-settings取得リクエスト:', { userId });
 
-  const settings = db.prepare(`
+  let settings = db.prepare(`
     SELECT * FROM user_settings WHERE user_id = ?
   `).get(userId);
+  console.log('📦 取得したuser_settings:', settings);
 
   if (!settings) {
-    return res.status(404).json({ error: 'ユーザー設定が見つかりません' });
+    console.log('⚠️ user_settingsが存在しないため、初期レコードを作成します');
+    // 初期レコードを作成
+    db.prepare(`
+      INSERT INTO user_settings (
+        user_id, daily_task_limit, theme_mode, medication_effect_mode_on, default_sort_option,
+        ai_aggressiveness_level, is_medication_taken, effect_start_time, effect_duration_minutes,
+        time_to_max_effect_minutes, time_to_fade_minutes, ai_suggestion_enabled, onboarding_completed,
+        show_completed_tasks, daily_reminder_enabled, show_hurdle, show_importance, show_deadline_alert
+      ) VALUES (?, 5, 'default', 0, 'created_at_desc', 1, 1, '08:00', 600, 60, 540, 1, 0, 1, 1, 1, 0, 0)
+    `).run(userId);
+    settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId);
+    console.log('✅ 作成した初期user_settings:', settings);
   }
 
   res.json(settings);
+});
+
+// ★ 新規追加: ユーザー設定の表示項目をまとめて更新
+app.patch('/user-settings', authenticateToken, (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: '認証が必要です' });
+  }
+  const userId = req.user.uid;
+  const { show_hurdle, show_importance, show_deadline_alert } = req.body;
+
+  // バリデーション
+  const isBool = (v: any) => v === 0 || v === 1 || v === true || v === false;
+  if (
+    (show_hurdle !== undefined && !isBool(show_hurdle)) ||
+    (show_importance !== undefined && !isBool(show_importance)) ||
+    (show_deadline_alert !== undefined && !isBool(show_deadline_alert))
+  ) {
+    return res.status(400).json({ error: '値は0/1またはtrue/falseで指定してください' });
+  }
+
+  // SQL動的生成
+  const fields = [];
+  const values = [];
+  if (show_hurdle !== undefined) {
+    fields.push('show_hurdle = ?');
+    values.push(show_hurdle ? 1 : 0);
+  }
+  if (show_importance !== undefined) {
+    fields.push('show_importance = ?');
+    values.push(show_importance ? 1 : 0);
+  }
+  if (show_deadline_alert !== undefined) {
+    fields.push('show_deadline_alert = ?');
+    values.push(show_deadline_alert ? 1 : 0);
+  }
+  if (fields.length === 0) {
+    return res.status(400).json({ error: '更新する項目がありません' });
+  }
+
+  const sql = `UPDATE user_settings SET ${fields.join(', ')} WHERE user_id = ?`;
+  values.push(userId);
+
+  try {
+    const stmt = db.prepare(sql);
+    stmt.run(...values);
+    // 更新後の値を返す
+    const updated = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(userId) as any;
+    res.json(updated);
+  } catch (err) {
+    console.error('❌ ユーザー設定更新中にエラー:', err);
+    res.status(500).json({ error: 'サーバーエラー' });
+  }
 });
 
 app.patch('/user-settings/medication-effect-mode', authenticateToken, (req, res) => {
@@ -411,6 +525,38 @@ app.patch('/user-settings/medication-effect-mode', authenticateToken, (req, res)
     res.json({ medication_effect_mode_on });
   } catch (err) {
     console.error('❌ 薬効モード更新中にエラー:', err);
+    res.status(500).json({ error: 'サーバーエラー' });
+  }
+});
+
+// 薬効モードの設定値を更新するエンドポイント
+app.patch('/user-settings/medication-config', authenticateToken, (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: '認証が必要です' });
+  }
+  const userId = req.user.uid;
+  const { effect_start_time, effect_duration_minutes, time_to_max_effect_minutes, time_to_fade_minutes } = req.body;
+
+  const stmt = db.prepare(`
+    UPDATE user_settings 
+    SET effect_start_time = ?,
+        effect_duration_minutes = ?,
+        time_to_max_effect_minutes = ?,
+        time_to_fade_minutes = ?
+    WHERE user_id = ?
+  `);
+
+  try {
+    stmt.run(
+      effect_start_time,
+      effect_duration_minutes,
+      time_to_max_effect_minutes,
+      time_to_fade_minutes,
+      userId
+    );
+    res.json({ effect_start_time, effect_duration_minutes, time_to_max_effect_minutes, time_to_fade_minutes });
+  } catch (err) {
+    console.error('❌ 薬効モード設定値更新中にエラー:', err);
     res.status(500).json({ error: 'サーバーエラー' });
   }
 });

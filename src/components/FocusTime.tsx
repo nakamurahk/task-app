@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useFocus } from '../contexts/FocusContext';
 import goodIcon from '../assets/good-cutout.png';
 import goodOffIcon from '../assets/good-off.png';
@@ -6,56 +6,39 @@ import normalIcon from '../assets/normal-cutout.png';
 import normalOffIcon from '../assets/normal-off.png';
 import badIcon from '../assets/bad-cutout.png';
 import badOffIcon from '../assets/bad-off.png';
+import { FaRegClock } from 'react-icons/fa';
 
-// 薬効状態に応じたメッセージを返す関数
-const getMedicationMessage = (status: string): string => {
-  switch (status) {
-    case 'before_peak':
-      return 'そろそろ集中力が上がってきます。無理せず始めましょう。';
-    case 'peak':
-      return 'いま一番集中できる時間です。優先タスクに取り組みましょう！';
-    case 'fading':
-      return '少しずつ集中力が落ちてきています。無理しすぎずに。';
-    case 'off':
-      return '集中のピークは過ぎました。軽めのタスクや休憩も検討を。';
-    case 'skipped':
-      return '今日は服薬していません。自分のペースで過ごしましょう。';
-    default:
-      return '';
-  }
-};
-
-// 残り時間を30分単位で表示する関数
-const formatRemainingTime = (config: any, status: string): string => {
-  if (status === 'skipped') return '';
-
+// 残り時間（分）を計算
+function getRemainingMinutes(config: any): number {
   const now = new Date();
   const [hours, minutes] = config.defaultTime.split(':').map(Number);
   const medicationTime = new Date();
   medicationTime.setHours(hours, minutes, 0, 0);
+  if (medicationTime > now) medicationTime.setDate(medicationTime.getDate() - 1);
+  const diffMin = (now.getTime() - medicationTime.getTime()) / (1000 * 60);
+  const totalMin = (config.totalEffectDuration || 0) * 60;
+  const remaining = Math.max(0, totalMin - diffMin);
+  return Math.round(remaining);
+}
 
-  // 今日の服薬時間が過ぎている場合は翌日の服薬時間を設定
-  if (medicationTime > now) {
-    medicationTime.setDate(medicationTime.getDate() - 1);
-  }
+// 残り時間テキスト
+function formatRemainingText(min: number): string {
+  if (min <= 0) return '終了';
+  if (min < 60) return `残り${min}分`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `残り${h}時間` : `残り${h}時間${m}分`;
+}
 
-  const diffHours = (now.getTime() - medicationTime.getTime()) / (1000 * 60 * 60);
-  const remainingHours = config.totalEffectDuration - diffHours;
-
-  if (remainingHours <= 0) return '--分';
-  
-  const roundedHours = Math.floor(remainingHours);
-  const remainingMinutes = Math.round((remainingHours - roundedHours) * 60);
-  const roundedMinutes = Math.round(remainingMinutes / 30) * 30;
-
-  if (roundedHours === 0) {
-    return `${roundedMinutes}分`;
-  } else if (roundedMinutes === 0) {
-    return `${roundedHours}時間`;
-  } else {
-    return `${roundedHours}時間${roundedMinutes}分`;
-  }
-};
+// 状況説明文
+function getFocusMessage(status: string, min: number): string {
+  if (status === 'peak') return '今が一番集中できる時間帯です！';
+  if (status === 'before_peak') return 'そろそろ集中力が上がってきます。ウォームアップに最適！';
+  if (status === 'fading') return '集中力が少しずつ落ちてきています。短時間タスクや休憩も意識して。';
+  if (status === 'off') return '集中のピークは過ぎました。無理せず自分のペースで。';
+  if (status === 'skipped') return '今日は服薬していません。自分のペースで過ごしましょう。';
+  return '';
+}
 
 const FocusTime: React.FC = () => {
   const {
@@ -63,65 +46,100 @@ const FocusTime: React.FC = () => {
     setPhysicalCondition,
     medicationStatus,
     medicationConfig,
-    medicationSkipped
+    medicationSkipped,
+    isEffectModeOn
   } = useFocus();
 
-  return (
-    <div className="focus-time">
-      <div className="focus-time-card">
-        {/* 体調選択 */}
-        <div className="flex justify-center space-x-4 mb-4">
-          <button
-            onClick={() => setPhysicalCondition('good')}
-            className={`w-9 h-9 flex items-center justify-center ${
-              physicalCondition === 'good' ? 'bg-blue-100' : ''
-            }`}
-          >
-            <img 
-              src={physicalCondition === 'good' ? goodIcon : goodOffIcon} 
-              alt="良い体調" 
-              className="w-8 h-8"
-              style={{ objectFit: 'cover', width: '32px', height: '32px' }}
-            />
-          </button>
-          <button
-            onClick={() => setPhysicalCondition('normal')}
-            className={`w-9 h-9 flex items-center justify-center ${
-              physicalCondition === 'normal' ? 'bg-blue-100' : ''
-            }`}
-          >
-            <img 
-              src={physicalCondition === 'normal' ? normalIcon : normalOffIcon} 
-              alt="普通の体調" 
-              className="w-8 h-8"
-              style={{ objectFit: 'cover', width: '32px', height: '32px' }}
-            />
-          </button>
-          <button
-            onClick={() => setPhysicalCondition('bad')}
-            className={`w-9 h-9 flex items-center justify-center ${
-              physicalCondition === 'bad' ? 'bg-blue-100' : ''
-            }`}
-          >
-            <img 
-              src={physicalCondition === 'bad' ? badIcon : badOffIcon} 
-              alt="悪い体調" 
-              className="w-8 h-8"
-              style={{ objectFit: 'cover', width: '32px', height: '32px' }}
-            />
-          </button>
-        </div>
+  // Hooksは必ずトップレベルで呼び出す
+  const [remaining, setRemaining] = useState(() => getRemainingMinutes(medicationConfig));
+  const [status, setStatus] = useState(medicationStatus);
+  const requestRef = useRef<number>();
 
-        {/* 集中状態表示 */}
-        <div className="text-center">
-          <div className="text-lg font-semibold mb-2">
-            集中状態: {getMedicationMessage(medicationStatus)}
-          </div>
-          {!medicationSkipped && (
-            <div className="text-gray-600">
-              残り時間: {formatRemainingTime(medicationConfig, medicationStatus)}
+  // アニメーションでゲージを減らす
+  useEffect(() => {
+    let start: number | null = null;
+    let prevMin = getRemainingMinutes(medicationConfig);
+    const totalMin = (medicationConfig.totalEffectDuration || 0) * 60;
+    function animate(time: number) {
+      if (start === null) start = time;
+      const nowMin = getRemainingMinutes(medicationConfig);
+      if (nowMin !== prevMin) {
+        setRemaining(nowMin);
+        prevMin = nowMin;
+      }
+      requestRef.current = requestAnimationFrame(animate);
+    }
+    requestRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
+  }, [medicationConfig]);
+
+  // ステータスも随時更新
+  useEffect(() => {
+    setStatus(medicationStatus);
+  }, [medicationStatus]);
+
+  // ゲージ幅計算
+  const totalMin = (medicationConfig.totalEffectDuration || 0) * 60;
+  const percent = totalMin === 0 ? 0 : Math.max(0, Math.min(100, (remaining / totalMin) * 100));
+
+  // 色・スタイル
+  const bgColor = '#E6F0FF';
+  const cardStyle = {
+    background: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    maxWidth: '600px',
+    margin: '0 auto',
+    width: '100%'
+  };
+  const barBg = '#BFD9FF';
+  const barColor = '#007BFF';
+
+  // 薬効モードがOFFの場合は何も表示しない
+  if (!isEffectModeOn) {
+    return null;
+  }
+
+  return (
+    <div style={{ width: '100%', margin: '24px 0' }}>
+      <div style={cardStyle} className="flex flex-col items-center">
+        {/* 残り時間テキスト＋アイコン */}
+        <div style={{ display: 'flex', alignItems: 'center', color: '#007BFF', fontWeight: 'bold', fontSize: 16, marginBottom: 8, marginTop: 4 }}>
+          <FaRegClock style={{ marginRight: 6, fontSize: 18 }} />
+          {formatRemainingText(remaining)}
+        </div>
+        {/* 集中ゲージ */}
+        <div style={{ width: '90%', maxWidth: 400, margin: '0 auto', marginBottom: 16 }}>
+          <div style={{ background: barBg, borderRadius: 8, height: 24, width: '100%', overflow: 'hidden', position: 'relative' }}>
+            <div
+              style={{
+                width: `${percent}%`,
+                background: barColor,
+                height: '100%',
+                borderRadius: 8,
+                transition: 'width 0.5s cubic-bezier(.4,2,.6,1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 16,
+                boxShadow: percent > 0 ? '0 2px 8px #007BFF33' : undefined
+              }}
+            >
+              {/* バー内は無地 or %表示 */}
+              {/* <span>{percent.toFixed(0)}%</span> */}
             </div>
-          )}
+          </div>
+        </div>
+        {/* 説明文 */}
+        <div style={{ textAlign: 'center', fontSize: 16, color: '#222', marginTop: 8, fontWeight: 500 }}>
+          {getFocusMessage(status, remaining)}
         </div>
       </div>
     </div>

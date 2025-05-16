@@ -31,6 +31,7 @@ export interface Task {
   task_path?: string;
   parent_recurring_task_id?: number;
   hurdle_level?: number; // 1-3の値を持つハードルレベル
+  memo?: string;
 }
 
 export type TaskPriority = 'high' | 'medium' | 'low'; 

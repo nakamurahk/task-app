@@ -48,10 +48,10 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-start justify-center bg-gray-50 pt-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="text-center text-3xl font-extrabold text-gray-900">
             ログイン
           </h2>
         </div>
@@ -103,7 +103,7 @@ const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 active:bg-blue-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? '読み込み中...' : 'ログイン'}
             </button>
@@ -126,7 +126,7 @@ const Login: React.FC = () => {
               type="button"
               disabled={loading}
               onClick={handleGoogleLogin}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-500 active:bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="sr-only">Googleでログイン</span>
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -142,7 +142,7 @@ const Login: React.FC = () => {
               type="button"
               disabled={loading}
               onClick={handleAppleLogin}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-500 active:bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="sr-only">Appleでログイン</span>
               <svg className="w-5 h-5" viewBox="0 0 24 24">

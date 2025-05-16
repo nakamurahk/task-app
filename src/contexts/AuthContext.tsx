@@ -10,7 +10,6 @@ import {
   OAuthProvider,
   sendEmailVerification,
   applyActionCode,
-  checkActionCode,
   confirmPasswordReset,
   sendPasswordResetEmail
 } from 'firebase/auth';
@@ -34,20 +33,85 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// 初期化関数：本当に初回だけ初期データ作成＆ログ出力
+async function initializeUserData(user: User) {
+  try {
+    let isFirst = false;
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        name: user.displayName || '',
+        email: user.email,
+        createdAt: new Date().toISOString(),
+        emailVerified: user.emailVerified ?? false
+      });
+      isFirst = true;
+    }
+
+    const settingsRef = doc(db, 'user_settings', user.uid);
+    const settingsSnap = await getDoc(settingsRef);
+    if (!settingsSnap.exists()) {
+      await setDoc(settingsRef, {
+        user_id: user.uid,
+        daily_task_limit: 5,
+        theme_mode: 'default',
+        medication_effect_mode_on: 0,
+        default_sort_option: 'created_at_desc',
+        ai_aggressiveness_level: 1,
+        is_medication_taken: 1,
+        effect_start_time: '08:00',
+        effect_duration_minutes: 600,
+        time_to_max_effect_minutes: 60,
+        time_to_fade_minutes: 540,
+        ai_suggestion_enabled: 1,
+        onboarding_completed: 0,
+        show_completed_tasks: 1,
+        daily_reminder_enabled: 1,
+        createdAt: new Date().toISOString()
+      });
+      isFirst = true;
+    }
+
+    const categoriesRef = doc(db, 'categories', `default_${user.uid}`);
+    const categoriesSnap = await getDoc(categoriesRef);
+    if (!categoriesSnap.exists()) {
+      await setDoc(categoriesRef, {
+        user_id: user.uid,
+        name: 'デフォルト',
+        color: '#808080',
+        is_default: true
+      });
+      isFirst = true;
+    }
+
+    if (isFirst) {
+      console.log('✅ 初期データ作成完了:', user.uid);
+    }
+  } catch (error) {
+    console.error('❌ 初期化エラー:', error);
+    throw error;
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Firebaseの認証状態の監視
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-      setLoading(false);
-    }, (error) => {
-      setError('認証エラーが発生しました');
-      console.error(error);
-      setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      try {
+        if (user) {
+          await initializeUserData(user);
+        }
+        setUser(user);
+      } catch (err) {
+        console.error('onAuthStateChanged error:', err);
+        setError('初期化に失敗しました');
+      } finally {
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
@@ -59,25 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
-      // メール認証メールを送信
       await sendEmailVerification(user);
-
-      // Firestoreにユーザー情報を保存
-      await setDoc(doc(db, 'users', user.uid), {
-        name,
-        email,
-        createdAt: new Date().toISOString(),
-        emailVerified: false
-      });
-
-      // デフォルトのカテゴリーを作成
-      await setDoc(doc(db, 'categories', `default_${user.uid}`), {
-        user_id: user.uid,
-        name: 'デフォルト',
-        color: '#808080',
-        is_default: true
-      });
     } catch (error) {
       console.error('Error signing up:', error);
       setError(error instanceof Error ? error.message : 'サインアップ中にエラーが発生しました');
@@ -94,26 +140,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // メール認証が完了していない場合、エラーを表示
       if (!user.emailVerified) {
         setError('メールアドレスの認証が完了していません。認証メールをご確認ください。');
         await signOut(auth);
         return false;
       }
 
-      // トークンの取得と保存を確実に待つ
-      const token = await user.getIdToken();
-      await new Promise<void>((resolve) => {
-        localStorage.setItem('token', token);
-        resolve();
-      });
-      
-      // Firestoreのユーザー情報を更新
-      await setDoc(doc(db, 'users', user.uid), {
-        emailVerified: true
-      }, { merge: true });
-
-      return true; // ログイン成功を示す
+      return true;
     } catch (error) {
       console.error('Error logging in:', error);
       setError(error instanceof Error ? error.message : 'ログイン中にエラーが発生しました');
@@ -128,8 +161,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       await signOut(auth);
-      // トークンを削除
-      localStorage.removeItem('token');
     } catch (error) {
       console.error('Error logging out:', error);
       setError(error instanceof Error ? error.message : 'ログアウト中にエラーが発生しました');
@@ -144,29 +175,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // 初回ログインの場合、ユーザー情報を保存
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', user.uid), {
-          name: user.displayName,
-          email: user.email,
-          createdAt: new Date().toISOString(),
-          emailVerified: true
-        });
-
-        // デフォルトのカテゴリーを作成
-        await setDoc(doc(db, 'categories', `default_${user.uid}`), {
-          user_id: user.uid,
-          name: 'デフォルト',
-          color: '#808080',
-          is_default: true
-        });
-      }
+      await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error('Error logging in with Google:', error);
+      console.error('Google login error:', error);
       setError(error instanceof Error ? error.message : 'Googleログイン中にエラーが発生しました');
       throw error;
     } finally {
@@ -179,29 +190,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       const provider = new OAuthProvider('apple.com');
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // 初回ログインの場合、ユーザー情報を保存
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', user.uid), {
-          name: user.displayName,
-          email: user.email,
-          createdAt: new Date().toISOString(),
-          emailVerified: true
-        });
-
-        // デフォルトのカテゴリーを作成
-        await setDoc(doc(db, 'categories', `default_${user.uid}`), {
-          user_id: user.uid,
-          name: 'デフォルト',
-          color: '#808080',
-          is_default: true
-        });
-      }
+      await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error('Error logging in with Apple:', error);
+      console.error('Apple login error:', error);
       setError(error instanceof Error ? error.message : 'Appleログイン中にエラーが発生しました');
       throw error;
     } finally {
@@ -213,12 +204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       setError(null);
-      if (!user) {
-        throw new Error('ユーザーがログインしていません');
-      }
+      if (!user) throw new Error('ユーザーがログインしていません');
       await sendEmailVerification(user);
     } catch (error) {
-      console.error('Error sending verification email:', error);
+      console.error('Verification email error:', error);
       setError(error instanceof Error ? error.message : '認証メールの送信中にエラーが発生しました');
       throw error;
     } finally {
@@ -232,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       await applyActionCode(auth, code);
     } catch (error) {
-      console.error('Error verifying email:', error);
+      console.error('Email verification error:', error);
       setError(error instanceof Error ? error.message : 'メール認証中にエラーが発生しました');
       throw error;
     } finally {
@@ -246,7 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       await sendPasswordResetEmail(auth, email);
     } catch (error) {
-      console.error('Error sending password reset email:', error);
+      console.error('Password reset error:', error);
       setError(error instanceof Error ? error.message : 'パスワードリセットメールの送信中にエラーが発生しました');
       throw error;
     } finally {
@@ -260,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       await confirmPasswordReset(auth, code, newPassword);
     } catch (error) {
-      console.error('Error confirming password reset:', error);
+      console.error('Confirm reset password error:', error);
       setError(error instanceof Error ? error.message : 'パスワードのリセット中にエラーが発生しました');
       throw error;
     } finally {
@@ -292,8 +281,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}; 
+};

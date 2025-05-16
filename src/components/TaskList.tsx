@@ -3,6 +3,8 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useTasks } from '../contexts/TaskContext';
 import CompletedTasks from './CompletedTasks';
 import TaskItem from './TaskItem';
+import { addHours } from 'date-fns';
+import { isToday } from '../utils/dateUtils';
 
 interface TaskListProps {
   onAddTaskClick: () => void;
@@ -34,6 +36,11 @@ const TaskList: React.FC<TaskListProps> = ({ onAddTaskClick, title = '今日の�
   const onDragEnd = (result: any) => {
     if (!result.destination) return;
     reorderTasks(result.source.index, result.destination.index);
+  };
+
+  const isTodayTask = (task: Task) => {
+    if (!task.completed_at) return false;
+    return isToday(task.completed_at);
   };
 
   const renderTaskItem = (task: any, index: number) => {

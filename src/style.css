@@ -5,7 +5,7 @@
 }
 
 body {
-    font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+    @apply font-rounded;
     background-color: #F5F5F5;
 }
 
@@ -13,20 +13,27 @@ body {
 .phone-frame {
     position: relative;
     width: 393px;
-    height: 852px;
-    background-color: white;
+    height: 100vh;
+    background-color: #F8F8F8;
     margin: 0 auto;
-    overflow: hidden;
+    overflow: visible;
     border-radius: 40px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
 .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 16px 8px;
+    padding: 8px 12px 4px;
     background-color: white;
+    height: 48px;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .header .brand-name {
@@ -161,7 +168,7 @@ body {
 }
 
 .task-item {
-    background: var(--bg-secondary);
+    background: white;
     border-radius: 8px;
     margin-bottom: 8px;
     padding: 4px 12px;
@@ -171,6 +178,7 @@ body {
     border-bottom: 1px solid #e0e0e0;
     transition: all 0.2s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    z-index: 1;
 }
 
 .task-content {
@@ -200,13 +208,15 @@ body {
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 2px;
 }
 
 .task-date {
     color: var(--text-secondary);
     font-size: 0.8rem;
     white-space: nowrap;
+    margin: 0;
+    padding: 0;
 }
 
 .task-priority {
@@ -272,11 +282,27 @@ body {
     height: 6px;
     border-radius: 50%;
     background: var(--text-secondary);
-    margin-left: 4px;
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+@keyframes deadline-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(231, 76, 60, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+  }
 }
 
 .deadline-dot.overdue {
     background: var(--error);
+    animation: deadline-pulse 1.5s infinite;
 }
 
 .priority-high {
@@ -444,41 +470,61 @@ body {
     .phone-frame {
         width: 100%;
         height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .app-container {
+        height: 100vh;
+    }
+
+    .main-content {
+        padding-bottom: 100px;
     }
 }
 
 /* Footer styles */
 .footer {
-    position: absolute;
+    position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: 64px;
     background-color: white;
     border-top: 1px solid #e0e0e0;
-    z-index: 100;
+    z-index: 50;
 }
 
-.footer .nav-item {
+.bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    height: 100%;
+    padding: 0 16px;
+}
+
+.nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-decoration: none;
     color: #666;
     font-size: 12px;
-    padding: 8px 0;
+    padding: 4px 0 8px 0;
+    flex: 1;
+    text-align: center;
 }
 
-.footer .nav-item-active {
+.nav-item-active {
     color: #007AFF;
 }
 
-.footer .nav-icon {
-    font-size: 20px;
-    margin-bottom: 4px;
+.nav-icon {
+    font-size: 18px;
+    margin-bottom: 2px;
 }
 
-.footer .nav-label {
+.nav-label {
     font-size: 10px;
 }
 
@@ -561,26 +607,38 @@ body {
 /* App Container */
 .app-container {
     position: relative;
-    height: 100%;
-    background-color: white;
-    padding-bottom: 80px;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 64px;
+    background-color: #F8F8F8;
 }
 
 /* Add Task Button */
+.add-task-button {
+    position: fixed;
+    bottom: 5rem; /* フッターの高さ + 余白 */
+    right: 1rem;
+    z-index: 30;
+}
+
 .add-task-button-container {
     position: fixed;
-    bottom: 80px; /* フッターの高さを考慮 */
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
+    bottom: 20px;
+    right: 16px;
+    z-index: 50;
 }
 
 .add-task-button {
-    position: absolute;
-    bottom: 80px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background-color: #007bff;
     border: none;
@@ -589,45 +647,18 @@ body {
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
+    transition: all 0.2s ease;
+}
+
+.add-task-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .plus-icon {
     color: white;
     font-size: 24px;
     font-weight: bold;
-}
-
-/* Bottom Navigation */
-.bottom-nav {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    height: 100%;
-    padding: 0 16px;
-}
-
-.nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-decoration: none;
-    color: #666;
-    font-size: 12px;
-    padding: 8px 0;
-}
-
-.nav-item-active {
-    color: #007AFF;
-}
-
-.nav-icon {
-    font-size: 20px;
-    margin-bottom: 4px;
-}
-
-.nav-label {
-    font-size: 10px;
 }
 
 .drag-handle {
@@ -660,19 +691,22 @@ body {
     background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 200px;
+    align-items: center;
     z-index: 1000;
+    padding: 0 16px;
 }
 
 .modal-content {
     background-color: white;
     padding: 24px;
     border-radius: 12px;
-    width: 90%;
-    max-width: 360px;
+    width: 100%;
+    max-width: 320px;
+    max-height: 80vh;
     position: relative;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow-y: auto;
+    padding-bottom: 1rem;
 }
 
 .modal-content h2 {
@@ -768,33 +802,6 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* 設定画面のスタイル */
-.settings-page {
-    position: relative;
-    height: 100vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 100px; /* フッターの高さを考慮 */
-}
-
-.settings-page::-webkit-scrollbar {
-    width: 8px;
-}
-
-.settings-page::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.settings-page::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-}
-
-.settings-page::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
 .sort-select {
     padding: 4px 8px;
     border: 1px solid #e0e0e0;
@@ -842,4 +849,12 @@ body {
 
 .detail-button:hover {
     background-color: #e5e7eb;
+}
+
+/* タブレット以上の画面サイズ */
+@media (min-width: 394px) {
+    .phone-frame {
+        margin: 20px auto;
+        height: calc(100vh - 40px);
+    }
 }
